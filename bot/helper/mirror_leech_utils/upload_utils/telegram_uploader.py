@@ -153,9 +153,14 @@ class TelegramUploader:
                 or getattr(self._listener, "link", "")
                 or ""
             )
-            lcaption = (
+            cap_text = getattr(self._listener, "social_caption", "") or ""
+            source_tag = (
                 f"<blockquote>Source: {user_link}</blockquote>" if user_link else ""
             )
+            if cap_text:
+                lcaption = f"{cap_text}\n\n{source_tag}" if source_tag else cap_text
+            else:
+                lcaption = source_tag
         else:
             lcaption = self._lcaption
 
