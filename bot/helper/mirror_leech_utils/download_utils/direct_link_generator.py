@@ -2588,30 +2588,89 @@ def instagram(link: str):
         if data.get("status") == "success" and "data" in data:
             d = data["data"]
             caption = d.get("caption") or d.get("title") or ""
+            if not caption:
+                caption = extract_instagram_caption(link)
+
             video_url = d.get("videoUrl")
+            videos = d.get("videos") or []
+            images = d.get("images") or []
+
+            # Multi-media carousel or multiple items
+            if len(videos) + len(images) > 1:
+                details = {"contents": [], "title": "Instagram_Post", "total_size": 0}
+                if caption:
+                    details["social_caption"] = caption
+                idx = 1
+                for v in videos:
+                    v_url = v if isinstance(v, str) else v.get("url")
+                    if v_url:
+                        details["contents"].append(
+                            {"path": "", "filename": f"video_{idx}.mp4", "url": v_url}
+                        )
+                        idx += 1
+                for img in images:
+                    img_url = img if isinstance(img, str) else img.get("url")
+                    if img_url:
+                        details["contents"].append(
+                            {"path": "", "filename": f"image_{idx}.jpg", "url": img_url}
+                        )
+                        idx += 1
+                if details["contents"]:
+                    return details
+
+            # Single video
             if video_url:
-                if not caption:
-                    caption = extract_instagram_caption(link)
                 return (video_url, None, caption) if caption else video_url
+
+            # Single image from API response
+            if images:
+                single_img = (
+                    images[0] if isinstance(images[0], str) else images[0].get("url")
+                )
+                if single_img:
+                    return (single_img, None, caption) if caption else single_img
     except Exception:
         pass
 
-    # Fallback to yt-dlp
+    # Fallback 1: Try open-graph meta image extraction for single photo post
+    try:
+        if not caption:
+            caption = extract_instagram_caption(link)
+        clean_link = link.split("?")[0].split("#")[0]
+        headers = {"User-Agent": "TelegramBot (like TwitterBot)"}
+        res = get(clean_link, headers=headers, timeout=5)
+        if res.status_code == 200:
+            meta_imgs = findall(
+                r'<meta\s+[^>]*?(?:property|name)=["\'](?:og:image|twitter:image)["\']\s+[^>]*?content=["\']([^"\']+)["\']',
+                res.text,
+            ) + findall(
+                r'<meta\s+[^>]*?content=["\']([^"\']+)["\']\s+[^>]*?(?:property|name)=["\'](?:og:image|twitter:image)["\']',
+                res.text,
+            )
+            if meta_imgs:
+                img_url = unescape(meta_imgs[0])
+                if img_url:
+                    return (img_url, None, caption) if caption else img_url
+    except Exception:
+        pass
+
+    # Fallback 2 to yt-dlp
     try:
         from yt_dlp import YoutubeDL
 
         with YoutubeDL({"quiet": True, "no_warnings": True}) as ydl:
             info = ydl.extract_info(link, download=False)
             if info:
-                caption = info.get("description") or info.get("title") or ""
                 if not caption:
-                    caption = extract_instagram_caption(link)
+                    caption = info.get("description") or info.get("title") or ""
+                    if not caption:
+                        caption = extract_instagram_caption(link)
                 if "url" in info and info["url"]:
                     return (info["url"], None, caption) if caption else info["url"]
     except Exception:
         pass
 
-    raise DirectDownloadLinkException("ERROR: Failed to retrieve Instagram video URL.")
+    raise DirectDownloadLinkException("ERROR: Failed to retrieve Instagram media URL.")
 
 
 def twitter(link: str):
@@ -2635,8 +2694,53 @@ def twitter(link: str):
                 if caption:
                     caption = sub(r"https?://t\.co/\w+", "", caption).strip()
                 media = data.get("mediaDetails", [])
+
+                if len(media) > 1:
+                    details = {
+                        "contents": [],
+                        "title": f"Tweet_{tweet_id}",
+                        "total_size": 0,
+                    }
+                    if caption:
+                        details["social_caption"] = caption
+                    for idx, m in enumerate(media, start=1):
+                        m_type = m.get("type")
+                        if m_type in ["video", "animated_gif"]:
+                            variants = m.get("video_info", {}).get("variants", [])
+                            mp4s = [
+                                v
+                                for v in variants
+                                if v.get("content_type") == "video/mp4"
+                            ]
+                            if mp4s:
+                                best_v = max(mp4s, key=lambda x: x.get("bitrate", 0))
+                                details["contents"].append(
+                                    {
+                                        "path": "",
+                                        "filename": f"video_{idx}.mp4",
+                                        "url": best_v["url"],
+                                    }
+                                )
+                        elif m_type == "photo":
+                            img_url = m.get("media_url_https")
+                            if img_url:
+                                if not img_url.endswith(
+                                    (".jpg", ".png", ".jpeg", ".webp")
+                                ):
+                                    img_url += "?name=orig"
+                                details["contents"].append(
+                                    {
+                                        "path": "",
+                                        "filename": f"image_{idx}.jpg",
+                                        "url": img_url,
+                                    }
+                                )
+                    if details["contents"]:
+                        return details
+
                 for m in media:
-                    if m.get("type") in ["video", "animated_gif"]:
+                    m_type = m.get("type")
+                    if m_type in ["video", "animated_gif"]:
                         variants = m.get("video_info", {}).get("variants", [])
                         mp4s = [
                             v for v in variants if v.get("content_type") == "video/mp4"
@@ -2648,6 +2752,12 @@ def twitter(link: str):
                                 if caption
                                 else best_video["url"]
                             )
+                    elif m_type == "photo":
+                        img_url = m.get("media_url_https")
+                        if img_url:
+                            if not img_url.endswith((".jpg", ".png", ".jpeg", ".webp")):
+                                img_url += "?name=orig"
+                            return (img_url, None, caption) if caption else img_url
     except Exception:
         pass
 
@@ -2670,7 +2780,7 @@ def twitter(link: str):
     except Exception:
         pass
 
-    raise DirectDownloadLinkException("ERROR: Failed to retrieve Twitter video URL.")
+    raise DirectDownloadLinkException("ERROR: Failed to retrieve Twitter media URL.")
 
 
 def debrid_link(url):
