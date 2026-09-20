@@ -1,3 +1,4 @@
+from html import unescape
 from cloudscraper import create_scraper
 from functools import lru_cache
 from hashlib import sha256
@@ -5,7 +6,7 @@ from http.cookiejar import MozillaCookieJar
 from json import loads
 from lxml.etree import HTML
 from os import path as ospath
-from re import findall, match, search, sub
+from re import DOTALL, findall, match, search, sub
 from niquests import Session, post, get
 from niquests.adapters import HTTPAdapter
 from time import sleep, time
@@ -2542,21 +2543,56 @@ def swisstransfer(link):
     }
 
 
-def instagram(link: str) -> str:
+def extract_instagram_caption(link: str) -> str:
+    try:
+        clean_link = link.split("?")[0].split("#")[0]
+        headers = {"User-Agent": "TelegramBot (like TwitterBot)"}
+        res = get(clean_link, headers=headers, timeout=5)
+        if res.status_code == 200:
+            meta_descs = findall(
+                r'<meta\s+(?:property|name)=["\'](?:og:description|twitter:description|description)["\']\s+content=["\']([^"\']+)["\']',
+                res.text,
+            )
+            if meta_descs:
+                raw_desc = unescape(meta_descs[0])
+                cap_match = search(
+                    r"on\s+[A-Za-z0-9,\s]+:\s*[\"']?(.*?)[\"']?\s*\.?$",
+                    raw_desc,
+                    DOTALL,
+                )
+                if not cap_match:
+                    cap_match = search(
+                        r":\s*[\"']?(.*?)[\"']?\s*\.?$", raw_desc, DOTALL
+                    )
+                if cap_match:
+                    caption = cap_match.group(1).strip()
+                    caption = sub(r'["\'.\s]+$', "", caption).strip()
+                    caption = sub(r'^["\']+', "", caption).strip()
+                    if caption:
+                        return caption
+    except Exception:
+        pass
+    return ""
+
+
+def instagram(link: str):
     api_url = Config.INSTADL_API or "https://instagramcdn.vercel.app"
     full_url = f"{api_url}/api/video?postUrl={link}"
+    caption = ""
 
     try:
         response = get(full_url, timeout=10)
         response.raise_for_status()
         data = response.json()
 
-        if (
-            data.get("status") == "success"
-            and "data" in data
-            and "videoUrl" in data["data"]
-        ):
-            return data["data"]["videoUrl"]
+        if data.get("status") == "success" and "data" in data:
+            d = data["data"]
+            caption = d.get("caption") or d.get("title") or ""
+            video_url = d.get("videoUrl")
+            if video_url:
+                if not caption:
+                    caption = extract_instagram_caption(link)
+                return (video_url, None, caption) if caption else video_url
     except Exception:
         pass
 
@@ -2566,15 +2602,20 @@ def instagram(link: str) -> str:
 
         with YoutubeDL({"quiet": True, "no_warnings": True}) as ydl:
             info = ydl.extract_info(link, download=False)
-            if info and "url" in info:
-                return info["url"]
+            if info:
+                caption = info.get("description") or info.get("title") or ""
+                if not caption:
+                    caption = extract_instagram_caption(link)
+                if "url" in info and info["url"]:
+                    return (info["url"], None, caption) if caption else info["url"]
     except Exception:
         pass
 
     raise DirectDownloadLinkException("ERROR: Failed to retrieve Instagram video URL.")
 
 
-def twitter(link: str) -> str:
+def twitter(link: str):
+    caption = ""
     # 1. Try Twitter official free syndication API
     try:
         clean_link = link.split("?")[0].split("#")[0]
@@ -2590,6 +2631,9 @@ def twitter(link: str) -> str:
             res = get(syn_url, headers=headers, timeout=10)
             if res.status_code == 200:
                 data = res.json()
+                caption = data.get("text", "").strip()
+                if caption:
+                    caption = sub(r"https?://t\.co/\w+", "", caption).strip()
                 media = data.get("mediaDetails", [])
                 for m in media:
                     if m.get("type") in ["video", "animated_gif"]:
@@ -2599,7 +2643,11 @@ def twitter(link: str) -> str:
                         ]
                         if mp4s:
                             best_video = max(mp4s, key=lambda x: x.get("bitrate", 0))
-                            return best_video["url"]
+                            return (
+                                (best_video["url"], None, caption)
+                                if caption
+                                else best_video["url"]
+                            )
     except Exception:
         pass
 
@@ -2610,12 +2658,15 @@ def twitter(link: str) -> str:
         with YoutubeDL({"quiet": True, "no_warnings": True}) as ydl:
             info = ydl.extract_info(link, download=False)
             if info:
-                if "url" in info:
-                    return info["url"]
-                elif "entries" in info and info["entries"]:
+                caption = info.get("description") or info.get("title") or ""
+                if caption:
+                    caption = sub(r"https?://t\.co/\w+", "", caption).strip()
+                url = info.get("url")
+                if not url and "entries" in info and info["entries"]:
                     first_entry = info["entries"][0]
-                    if "url" in first_entry:
-                        return first_entry["url"]
+                    url = first_entry.get("url")
+                if url:
+                    return (url, None, caption) if caption else url
     except Exception:
         pass
 

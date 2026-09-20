@@ -552,7 +552,14 @@ class Mirror(TaskListener):
                     self.orig_link = self.link
                     self.link = await sync_to_async(direct_link_generator, self.link)
                     if isinstance(self.link, tuple):
-                        self.link, headers = self.link
+                        if len(self.link) == 3:
+                            self.link, headers, social_cap = self.link
+                            if social_cap:
+                                self.social_caption = social_cap
+                        else:
+                            self.link, headers = self.link
+                    elif isinstance(self.link, dict) and "social_caption" in self.link:
+                        self.social_caption = self.link.get("social_caption", "")
                     elif isinstance(self.link, str):
                         LOGGER.info(f"Generated link: {self.link}")
                 except DirectDownloadLinkException as e:
