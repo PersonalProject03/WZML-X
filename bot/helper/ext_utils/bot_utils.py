@@ -702,8 +702,10 @@ async def is_paid_user(user_id, check_addon=False):
 
                 async with AsyncSession() as session:
                     res = await session.get(url, headers=headers, timeout=5)
+                    LOGGER.info(f"SUB_BOT_API: URL={url} STATUS={res.status_code}")
                     if res.status_code == 200:
                         raw_data = res.json()
+                        LOGGER.info(f"SUB_BOT_API: DATA={raw_data}")
                         if isinstance(raw_data, dict):
                             data_obj = raw_data.get("data", raw_data)
                             if not isinstance(data_obj, dict):
@@ -761,6 +763,9 @@ async def is_paid_user(user_id, check_addon=False):
                                 paid_users.add(user_id)
                             else:
                                 paid_users.discard(user_id)
+                            LOGGER.info(
+                                f"SUB_BOT_API: USER {user_id} IS_ACTIVE={is_active} HAS_ADDON={has_active_addon}"
+                            )
 
                             if check_addon:
                                 if isinstance(check_addon, str):
@@ -775,6 +780,10 @@ async def is_paid_user(user_id, check_addon=False):
                                 return has_active_addon
 
                             return is_active
+                    else:
+                        LOGGER.warning(
+                            f"SUB_BOT_API: non-200 status {res.status_code} - {res.text}"
+                        )
             except Exception as e:
                 LOGGER.error(f"Error querying SUB_BOT_API_URL for {user_id}: {e}")
 
