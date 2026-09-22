@@ -669,14 +669,15 @@ def resolve_command(command_str):
 
 
 async def is_paid_user(user_id, check_addon=False):
-    from ... import sudo_users, paid_users
+    from ... import paid_users
 
     try:
         # 1. Owner & Sudo users always have full access
-        if str(user_id) == str(Config.OWNER_ID):
-            return True
-        if user_id in sudo_users or bool(user_data.get(user_id, {}).get("SUDO")):
-            return True
+        # TEMPORARY FOR TESTING: Skip Owner/Sudo bypass so API is tested for everyone
+        # if str(user_id) == str(Config.OWNER_ID):
+        #     return True
+        # if user_id in sudo_users or bool(user_data.get(user_id, {}).get("SUDO")):
+        #     return True
 
         # 2. Check if subscription feature is configured at all
         sub_feature_enabled = bool(
