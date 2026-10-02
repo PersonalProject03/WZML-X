@@ -44,6 +44,7 @@ from ..helper.telegram_helper.message_utils import (
     edit_message,
     send_message,
 )
+from ..helper.themes import BotTheme
 from ..version import get_version
 
 commands = {
@@ -85,7 +86,7 @@ async def get_stats(event, key="home"):
             changelog = git_info.commit_msg() or "N/A"
             if git_info.commit_hash() != "unknown":
                 changelog += f" | <code>{git_info.commit_hash()}</code>"
-            msg = f"""⌬ <b>BOT STATISTICS :</b>
+            default_msg = f"""⌬ <b>BOT STATISTICS :</b>
 ┎ <b>Bot Uptime :</b> {get_readable_time(time() - bot_start_time)}
 ┠ <b>Bandwidth :</b> {get_bandwidth_string()}
 ┖ <b>Used :</b> {get_readable_file_size(used)} | <b>Free :</b> {get_readable_file_size(free)} | <b>Total :</b> {get_readable_file_size(total)}
@@ -99,6 +100,21 @@ async def get_stats(event, key="home"):
 ┎ <b>Current Version :</b> {get_version()}
 ┠ <b>Commit Date :</b> {last_commit}
 ┖ <b>Last ChangeLog :</b> {changelog}"""
+            msg = BotTheme(
+                "STATS_HOME",
+                default=default_msg,
+                uptime=get_readable_time(time() - bot_start_time),
+                bandwidth=get_bandwidth_string(),
+                used=get_readable_file_size(used),
+                free=get_readable_file_size(free),
+                total=get_readable_file_size(total),
+                os_uptime=get_readable_time(time() - boot_time()),
+                os_version=version(),
+                os_arch=platform(),
+                version=get_version(),
+                commit_date=last_commit,
+                changelog=changelog,
+            )
         else:
             btns.data_button("Bot Stats", f"stats {user_id} stbot")
             btns.data_button("OS Stats", f"stats {user_id} stsys")
@@ -127,7 +143,7 @@ async def get_stats(event, key="home"):
         sys_cpu = cpu_count(logical=True)
         p_cores = cpu_count(logical=False)
         v_cores = (sys_cpu or 0) - (p_cores or 0)
-        msg = f"""⌬ <b><i>BOT STATISTICS :</i></b>
+        default_msg = f"""⌬ <b><i>BOT STATISTICS :</i></b>
 ┖ <b>Bot Uptime :</b> {get_readable_time(time() - bot_start_time)}
 
 ┎ <b><i>INSTANCE RAM ( BOT ) :</i></b>
@@ -153,12 +169,48 @@ async def get_stats(event, key="home"):
 ┃ <b>Total Disk Write :</b> {f"{get_readable_file_size(disk_io.write_bytes)} ({get_readable_time(disk_io.write_time / 1000)})" if disk_io else "Access Denied"}
 ┖ <b>U :</b> {get_readable_file_size(used)} | <b>F :</b> {get_readable_file_size(free)} | <b>T :</b> {get_readable_file_size(total)}
 """
+        msg = BotTheme(
+            "BOT_STATS",
+            default=default_msg,
+            uptime=get_readable_time(time() - bot_start_time),
+            ram_bar=get_progress_bar_string(bot_ram_pct),
+            ram_pct=bot_ram_pct,
+            ram_used=get_readable_file_size(bot_ram_used),
+            ram_free=get_readable_file_size(bot_ram_free),
+            ram_total=get_readable_file_size(bot_ram_total),
+            sys_ram_bar=get_progress_bar_string(memory.percent),
+            sys_ram_pct=memory.percent,
+            sys_ram_used=get_readable_file_size(memory.used),
+            sys_ram_free=get_readable_file_size(memory.available),
+            sys_ram_total=get_readable_file_size(memory.total),
+            swap_bar=get_progress_bar_string(swap.percent),
+            swap_pct=swap.percent,
+            swap_used=get_readable_file_size(swap.used),
+            swap_free=get_readable_file_size(swap.free),
+            swap_total=get_readable_file_size(swap.total),
+            instance_cpu=instance_cpu,
+            sys_cpu=sys_cpu,
+            p_cores=p_cores,
+            v_cores=v_cores,
+            usable_cpus=len(Process().cpu_affinity()),
+            disk_bar=get_progress_bar_string(disk),
+            disk_pct=disk,
+            disk_read=f"{get_readable_file_size(disk_io.read_bytes)} ({get_readable_time(disk_io.read_time / 1000)})"
+            if disk_io
+            else "Access Denied",
+            disk_write=f"{get_readable_file_size(disk_io.write_bytes)} ({get_readable_time(disk_io.write_time / 1000)})"
+            if disk_io
+            else "Access Denied",
+            used=get_readable_file_size(used),
+            free=get_readable_file_size(free),
+            total=get_readable_file_size(total),
+        )
     elif key == "stsys":
         cpu_usage = cpu_percent(interval=0.5)
         sys_cpu = cpu_count(logical=True)
         p_cores = cpu_count(logical=False)
         v_cores = (sys_cpu or 0) - (p_cores or 0)
-        msg = f"""⌬ <b><i>SYSTEM OS :</i></b>
+        default_msg = f"""⌬ <b><i>SYSTEM OS :</i></b>
 ╟ <b>OS Uptime :</b> {get_readable_time(time() - boot_time())}
 ┠ <b>OS Version :</b> {version()}
 ┖ <b>OS Arch :</b> {platform()}
@@ -179,6 +231,34 @@ async def get_stats(event, key="home"):
 ┠ <b>Total Core(s) :</b> {sys_cpu}
 ┖ <b>Usable CPU(s) :</b> {len(Process().cpu_affinity())}
 """
+        msg = BotTheme(
+            "SYS_STATS",
+            default=default_msg,
+            os_uptime=get_readable_time(time() - boot_time()),
+            os_version=version(),
+            os_arch=platform(),
+            sent_data=get_readable_file_size(net_io_counters().bytes_sent),
+            recv_data=get_readable_file_size(net_io_counters().bytes_recv),
+            pkts_sent=str(net_io_counters().packets_sent)[:-3],
+            pkts_recv=str(net_io_counters().packets_recv)[:-3],
+            total_io=get_readable_file_size(
+                net_io_counters().bytes_recv + net_io_counters().bytes_sent
+            ),
+            bandwidth=get_bandwidth_string(),
+            cpu_bar=get_progress_bar_string(cpu_usage),
+            cpu_usage=cpu_usage,
+            cpu_freq=f"{cpu_freq().current / 1000:.2f} GHz"
+            if cpu_freq()
+            else "Access Denied",
+            avg_load="%, ".join(
+                str(round((x / (cpu_count() or 1) * 100), 2)) for x in getloadavg()
+            )
+            + "%, (1m, 5m, 15m)",
+            p_cores=p_cores,
+            v_cores=v_cores,
+            sys_cpu=sys_cpu,
+            usable_cpus=len(Process().cpu_affinity()),
+        )
     elif key == "strepo":
         last_commit = git_info.commit_date() or "No Data"
         changelog = git_info.commit_msg() or "N/A"
@@ -200,7 +280,7 @@ async def get_stats(event, key="home"):
                 True,
             )
         )[0]
-        msg = f"""⌬ <b><i>Repo Statistics :</i></b>
+        default_msg = f"""⌬ <b><i>Repo Statistics :</i></b>
 │
 ┟ <b>Bot Updated :</b> {last_commit}
 ┠ <b>Current Version :</b> {get_version()}
@@ -209,9 +289,18 @@ async def get_stats(event, key="home"):
 
 ⌬ <b>REMARKS :</b> <code>{compare_versions(get_version(), official_v)}</code>
     """
+        msg = BotTheme(
+            "REPO_STATS",
+            default=default_msg,
+            last_commit=last_commit,
+            bot_version=get_version(),
+            official_v=official_v,
+            changelog=changelog,
+            remarks=compare_versions(get_version(), official_v),
+        )
     elif key == "stpkgs":
         ver = bot_cache.get("eng_versions", {})
-        msg = f"""⌬ <b><i>Packages Statistics :</i></b>
+        default_msg = f"""⌬ <b><i>Packages Statistics :</i></b>
 │
 ┟ <b>python:</b> v{ver.get("python", "N/A")}
 ┠ <b>aria2:</b> v{ver.get("aria2", "N/A")}
@@ -226,8 +315,24 @@ async def get_stats(event, key="home"):
 ┠ <b>Google API:</b> v{ver.get("gapi", "N/A")}
 ┖ <b>MegaSDK:</b> v{ver.get("mega", "N/A")}
 """
+        msg = BotTheme(
+            "PKGS_STATS",
+            default=default_msg,
+            python=ver.get("python", "N/A"),
+            aria2=ver.get("aria2", "N/A"),
+            qBittorrent=ver.get("qBittorrent", "N/A"),
+            sabnzbd=ver.get("SABnzbd+", "N/A"),
+            rclone=ver.get("rclone", "N/A"),
+            ytdlp=ver.get("yt-dlp", "N/A"),
+            ffmpeg=ver.get("ffmpeg", "N/A"),
+            sevenz=ver.get("7z", "N/A"),
+            aiohttp=ver.get("aiohttp", "N/A"),
+            wzgram=ver.get("wzgram", "N/A"),
+            gapi=ver.get("gapi", "N/A"),
+            mega=ver.get("mega", "N/A"),
+        )
     elif key == "tlimits":
-        msg = f"""⌬ <b><i>Bot Task Limits :</i></b>
+        default_msg = f"""⌬ <b><i>Bot Task Limits :</i></b>
 │
 ┟ <b>Direct Limit :</b> {Config.DIRECT_LIMIT or "∞"} GB
 ┠ <b>Torrent Limit :</b> {Config.TORRENT_LIMIT or "∞"} GB
@@ -249,7 +354,31 @@ async def get_stats(event, key="home"):
 ┠ <b>User Time Limit :</b> {Config.USER_TIME_INTERVAL or "0"}s / task
 ┠ <b>User Max Tasks :</b> {Config.USER_MAX_TASKS or "∞"}
 ┖ <b>Bot Max Tasks :</b> {Config.BOT_MAX_TASKS or "∞"}
-    """
+"""
+        msg = BotTheme(
+            "BOT_LIMITS",
+            default=default_msg,
+            direct=f"{Config.DIRECT_LIMIT} GB" if Config.DIRECT_LIMIT else "∞",
+            torrent=f"{Config.TORRENT_LIMIT} GB" if Config.TORRENT_LIMIT else "∞",
+            gdrive=f"{Config.GD_DL_LIMIT} GB" if Config.GD_DL_LIMIT else "∞",
+            rclone=f"{Config.RC_DL_LIMIT} GB" if Config.RC_DL_LIMIT else "∞",
+            clone=f"{Config.CLONE_LIMIT} GB" if Config.CLONE_LIMIT else "∞",
+            jdown=f"{Config.JD_LIMIT} GB" if Config.JD_LIMIT else "∞",
+            nzb=f"{Config.NZB_LIMIT} GB" if Config.NZB_LIMIT else "∞",
+            ytdlp=f"{Config.YTDLP_LIMIT} GB" if Config.YTDLP_LIMIT else "∞",
+            playlist=Config.PLAYLIST_LIMIT or "∞",
+            mega=f"{Config.MEGA_LIMIT} GB" if Config.MEGA_LIMIT else "∞",
+            leech=f"{Config.LEECH_LIMIT} GB" if Config.LEECH_LIMIT else "∞",
+            archive=f"{Config.ARCHIVE_LIMIT} GB" if Config.ARCHIVE_LIMIT else "∞",
+            extract=f"{Config.EXTRACT_LIMIT} GB" if Config.EXTRACT_LIMIT else "∞",
+            storage=f"{Config.STORAGE_LIMIT} GB" if Config.STORAGE_LIMIT else "∞",
+            verify_timeout=get_readable_time(Config.VERIFY_TIMEOUT)
+            if Config.VERIFY_TIMEOUT
+            else "Disabled",
+            user_interval=f"{Config.USER_TIME_INTERVAL or '0'}s",
+            user_tasks=Config.USER_MAX_TASKS or "∞",
+            bot_tasks=Config.BOT_MAX_TASKS or "∞",
+        )
 
     elif key == "systasks":
         try:

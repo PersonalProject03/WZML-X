@@ -28,15 +28,21 @@ from ..helper.telegram_helper.message_utils import (
 )
 
 
+from ..helper.themes import BotTheme
+
+
 @new_task
 async def start(_, message):
     userid = message.from_user.id
     lang = Language()
     buttons = ButtonMaker()
     buttons.url_button(
-        lang.START_BUTTON1, "https://www.github.com/SilentDemonSD/WZML-X"
+        BotTheme("ST_BN1_NAME", default=lang.START_BUTTON1),
+        "https://www.github.com/SilentDemonSD/WZML-X",
     )
-    buttons.url_button(lang.START_BUTTON2, "https://t.me/WZML_X")
+    buttons.url_button(
+        BotTheme("ST_BN2_NAME", default=lang.START_BUTTON2), "https://t.me/WZML_X"
+    )
     reply_markup = buttons.build_menu(2)
 
     if len(message.command) > 1 and message.command[1] == "wzmlx":
@@ -58,13 +64,19 @@ async def start(_, message):
             if int(pre_uid) != userid:
                 return await send_message(
                     message,
-                    "<b>Access Token is not yours!</b>\n\n<i>Kindly generate your own to use.</i>",
+                    BotTheme(
+                        "OWN_TOKEN_GENERATE",
+                        default="<b>Access Token is not yours!</b>\n\n<i>Kindly generate your own to use.</i>",
+                    ),
                 )
             data = user_data.get(userid, {})
             if "VERIFY_TOKEN" not in data or data["VERIFY_TOKEN"] != input_token:
                 return await send_message(
                     message,
-                    "<b>Access Token already used!</b>\n\n<i>Kindly generate a new one.</i>",
+                    BotTheme(
+                        "USED_TOKEN",
+                        default="<b>Access Token already used!</b>\n\n<i>Kindly generate a new one.</i>",
+                    ),
                 )
             elif (
                 Config.LOGIN_PASS
@@ -72,39 +84,49 @@ async def start(_, message):
             ):
                 return await send_message(
                     message,
-                    "<b>Bot Already Logged In via Password</b>\n\n<i>No Need to Accept Temp Tokens.</i>",
+                    BotTheme(
+                        "LOGGED_PASSWORD",
+                        default="<b>Bot Already Logged In via Password</b>\n\n<i>No Need to Accept Temp Tokens.</i>",
+                    ),
                 )
             buttons.data_button(
-                "Activate Access Token", f"start pass {input_token}", "header"
+                BotTheme("ACTIVATE_BUTTON", default="Activate Access Token"),
+                f"start pass {input_token}",
+                "header",
             )
             reply_markup = buttons.build_menu(2)
-            msg = f"""⌬ Access Login Token : 
+            default_verify_msg = f"""⌬ Access Login Token : 
     │
     ┟ <b>Status</b> → <code>Generated Successfully</code>
     ┟ <b>Access Token</b> → <code>{input_token}</code>
     ┃
     ┖ <b>Validity:</b> {get_readable_time(int(Config.VERIFY_TIMEOUT))}"""
+            msg = BotTheme(
+                "VERIFY_SUCCESS",
+                default=default_verify_msg,
+                input_token=input_token,
+                validity=get_readable_time(int(Config.VERIFY_TIMEOUT)),
+            )
             return await send_message(message, msg, reply_markup)
 
     if await CustomFilters.authorized(_, message):
-        start_string = lang.START_MSG.format(
+        default_start_str = lang.START_MSG.format(
             cmd=BotCommands.HelpCommand[0],
+        )
+        start_string = BotTheme(
+            "ST_MSG",
+            default=default_start_str,
+            help_command=f"/{BotCommands.HelpCommand[0]}",
         )
         await send_message(message, start_string, reply_markup, photo="IMAGES")
     elif Config.BOT_PM:
-        await send_message(
-            message,
-            "<i>Now, Bot will send you all your files and links here. Start Using Now...</i>",
-            reply_markup,
-            photo="IMAGES",
-        )
+        default_pm_str = "<i>Now, Bot will send you all your files and links here. Start Using Now...</i>"
+        msg = BotTheme("ST_BOTPM", default=default_pm_str)
+        await send_message(message, msg, reply_markup, photo="IMAGES")
     else:
-        await send_message(
-            message,
-            "<i>Bot can mirror/leech from links|tgfiles|torrents|nzb|rclone-cloud to any rclone cloud, Google Drive or to telegram.\n\n⚠️ You are not an authorized user! Deploy your own WZML-X bot</i>",
-            reply_markup,
-            photo="IMAGES",
-        )
+        default_unauth_str = "<i>Bot can mirror/leech from links|tgfiles|torrents|nzb|rclone-cloud to any rclone cloud, Google Drive or to telegram.\n\n⚠️ You are not an authorized user! Deploy your own WZML-X bot</i>"
+        msg = BotTheme("ST_UNAUTH", default=default_unauth_str)
+        await send_message(message, msg, reply_markup, photo="IMAGES")
     await database.set_pm_users(userid)
 
 
