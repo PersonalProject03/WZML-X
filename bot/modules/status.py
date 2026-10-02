@@ -36,6 +36,9 @@ from ..helper.telegram_helper.message_utils import (
 from ..helper.telegram_helper.button_build import ButtonMaker
 
 
+from ..helper.themes import BotTheme
+
+
 @new_task
 async def task_status(_, message):
     async with task_dict_lock:
@@ -43,13 +46,23 @@ async def task_status(_, message):
     if count == 0:
         currentTime = get_readable_time(time() - bot_start_time)
         free = get_readable_file_size(disk_usage(DOWNLOAD_DIR).free)
-        msg = f"""〶 <b><i>No Active Bot Tasks!</i></b>
+        default_msg = f"""〶 <b><i>No Active Bot Tasks!</i></b>
 
 ⌬ <b><u>Bot Stats</u></b>
 ┟ <b>CPU</b> → {cpu_percent()}% | <b>F</b> → {free} [{round(100 - disk_usage(DOWNLOAD_DIR).percent, 1)}%]
 ┠ <b>RAM</b> → {virtual_memory().percent}% | <b>UP</b> → {currentTime}
 ┖ <b>BW</b> → {get_bandwidth_string()}
 """
+        msg = BotTheme(
+            "NO_ACTIVE_DL",
+            default=default_msg,
+            cpu=cpu_percent(),
+            free=free,
+            free_p=round(100 - disk_usage(DOWNLOAD_DIR).percent, 1),
+            ram=virtual_memory().percent,
+            uptime=currentTime,
+            bw=get_bandwidth_string(),
+        )
         reply_message = await send_message(message, msg)
         await auto_delete_message(message, reply_message)
     else:

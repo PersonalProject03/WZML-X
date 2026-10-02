@@ -30,6 +30,7 @@ from ...core.torrent_manager import TorrentManager
 from ..ext_utils.bot_utils import sync_to_async
 from ..ext_utils.links_utils import encode_slink
 from ..ext_utils.db_handler import database
+from ..themes import BotTheme
 from ..ext_utils.files_utils import (
     clean_download,
     clean_target,
@@ -526,11 +527,23 @@ class TaskListener(TaskConfig):
             and Config.DATABASE_URL
         ):
             await database.rm_complete_task(self.message.link)
-        msg = (
-            f"<b><i>{escape(self.name)}</i></b>\n│"
-            f"\n┟ <b>Task Size</b> → {get_readable_file_size(self.size)}"
-            f"\n┠ <b>Time Taken</b> → {get_readable_time(time() - self.message.date.timestamp())}"
-            f"\n┠ <b>In / Out Mode</b> → {self.mode[0]} | {self.mode[1]}"
+        msg = BotTheme(
+            "NAME", default="<b><i>{Name}</i></b>\n│\n", Name=escape(self.name)
+        )
+        msg += BotTheme(
+            "SIZE",
+            default="┟ <b>Task Size</b> → {Size}\n",
+            Size=get_readable_file_size(self.size),
+        )
+        msg += BotTheme(
+            "ELAPSE",
+            default="┠ <b>Time Taken</b> → {Time}\n",
+            Time=get_readable_time(time() - self.message.date.timestamp()),
+        )
+        msg += BotTheme(
+            "MODE",
+            default="┠ <b>In / Out Mode</b> → {Mode}\n",
+            Mode=f"{self.mode[0]} | {self.mode[1]}",
         )
 
         if not getattr(self, "is_clone", False):

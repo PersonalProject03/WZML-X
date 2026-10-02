@@ -23,6 +23,7 @@ class Config:
     PRIVATE_OUTPUT = False
     CMD_SUFFIX = ""
     COLORED_BTNS = True
+    BOT_THEME = "minimal"
     DEFAULT_LANG = "en"
     DATABASE_URL = ""
     DEFAULT_UPLOAD = "rc"

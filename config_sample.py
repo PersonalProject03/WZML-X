@@ -6,6 +6,7 @@ TELEGRAM_HASH = ""
 DATABASE_URL = ""
 
 # OPTIONAL CONFIG
+BOT_THEME = "minimal"  # Change the theme of bot. Currently available: minimal, random, or custom. Info: https://t.ly/9rVXq
 DEFAULT_LANG = "en"
 TG_PROXY = None  # {"scheme": ”socks5”, "hostname": ””, "port": 1234, "username": ”user”, "password": ”pass”}
 USER_SESSION_STRING = ""

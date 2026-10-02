@@ -36,6 +36,7 @@ from ..helper.ext_utils.db_handler import database
 from ..helper.ext_utils.mega_utils import get_mega_account_info
 from ..helper.ext_utils.media_utils import create_thumb
 from ..helper.ext_utils.filter_utils import compile_pattern
+from ..helper.themes import BotTheme
 from ..helper.ext_utils.session_crypt import SessionCrypt, SessionCryptError
 from ..helper.ext_utils.session_vault import UserSession, vault
 from ..helper.ext_utils.settings_portal import PortalError, SettingsPortal
@@ -503,13 +504,24 @@ async def get_user_settings(from_user, stype="main"):
             style=ButtonStyle.DANGER,
         )
 
-        text = f"""⌬ <b>User Settings :</b>
+        default_user_setting = f"""⌬ <b>User Settings :</b>
 │
 ┟ <b>Name</b> → {user_name}
 ┠ <b>UserID</b> → #ID{user_id}
 ┠ <b>Username</b> → @{from_user.username}
 ┠ <b>Telegram DC</b> → {from_user.dc_id}
 ┖ <b>Telegram Lang</b> → {Language.get(lc).display_name() if (lc := from_user.language_code) else "N/A"}"""
+        text = BotTheme(
+            "USER_SETTING",
+            default=default_user_setting,
+            user_name=user_name,
+            user_id=user_id,
+            username=from_user.username,
+            dc_id=from_user.dc_id,
+            lang_name=Language.get(lc).display_name()
+            if (lc := from_user.language_code)
+            else "N/A",
+        )
 
         btns = buttons.build_menu(2)
 
@@ -547,13 +559,21 @@ async def get_user_settings(from_user, stype="main"):
 
         btns = buttons.build_menu(2)
 
-        text = f"""⌬ <b>General Settings :</b>
+        default_gen_setting = f"""⌬ <b>General Settings :</b>
 ┟ <b>Name</b> → {user_name}
 ┃
 ┠ <b>Default Upload Package</b> → <b>{du}</b>
 ┠ <b>Default Usage Mode</b> → <b>{tr}'s</b> token/config
 ┖ <b>Bot PM Delivery</b> → <b>{bot_pm_str}</b>
 """
+        text = BotTheme(
+            "GENERAL_SETTING",
+            default=default_gen_setting,
+            user_name=user_name,
+            du=du,
+            tr=tr,
+            bot_pm_str=bot_pm_str,
+        )
 
     elif stype == "leech":
         buttons.data_button(
