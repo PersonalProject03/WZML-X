@@ -65,6 +65,8 @@ class SmartMediaMetadata:
     audio_language: Optional[str] = None
     subtitle_languages: tuple[str, ...] = ()
     has_english_subtitle: bool = False
+    audio_count: int = 0
+    subtitle_count: int = 0
 
 
 @dataclass
@@ -484,19 +486,25 @@ async def probe_smart_media_metadata(
 
     audio_language = None
     subtitle_languages = []
+    audio_count = 0
+    subtitle_count = 0
 
     for stream in streams:
         codec_type = stream.get("codec_type")
         language = ((stream.get("tags") or {}).get("language") or "").strip()
 
-        if codec_type == "audio" and not audio_language and language:
-            if language.lower() not in {"und", "unknown", "none"}:
-                audio_language = normalize_language(language)
+        if codec_type == "audio":
+            audio_count += 1
+            if not audio_language and language:
+                if language.lower() not in {"und", "unknown", "none"}:
+                    audio_language = normalize_language(language)
 
-        elif codec_type == "subtitle" and language:
-            normalized = normalize_language(language)
-            if normalized:
-                subtitle_languages.append(normalized)
+        elif codec_type == "subtitle":
+            subtitle_count += 1
+            if language:
+                normalized = normalize_language(language)
+                if normalized:
+                    subtitle_languages.append(normalized)
 
     height = None
     codec = None
@@ -513,6 +521,8 @@ async def probe_smart_media_metadata(
         audio_language=audio_language or ctx.filename_audio,
         subtitle_languages=tuple(subtitle_languages),
         has_english_subtitle=english or ctx.filename_esubs,
+        audio_count=audio_count,
+        subtitle_count=subtitle_count,
     )
 
 
@@ -708,6 +718,7 @@ class SmartFilenameBuilder:
             return original_filename
 
         ep_title = (canonical.episode_title if canonical else None) or ""
+        stem_source, _, _ = split_media_filename(original_filename)
 
         title_comp = clean_component(parts.title)
         values = [title_comp]
@@ -717,16 +728,59 @@ class SmartFilenameBuilder:
             values.append(clean_component(parts.year))
         if ep_title:
             values.append(clean_component(ep_title))
-        if parts.quality:
-            values.append(clean_component(parts.quality))
-        if parts.ott:
-            values.append(clean_component(parts.ott))
-        if parts.audio:
-            values.append(clean_component(parts.audio))
-        if parts.codec:
-            values.append(clean_component(parts.codec))
-        if parts.esubs:
-            values.append("ESubs")
+
+        # Extract technical tokens in order of appearance in original filename
+        tech_pattern = re.compile(
+            r"(?i)\b("
+            r"480p|540p|576p|720p|1080p|1440p|2160p|4320p|4k|"
+            r"hevc|h\.?265|h\.?264|x265|x264|avc1?|av1|vp9|vp8|"
+            r"10bit|8bit|hdr\d*|sdr|dovi|dolbyvision|open\s*matte|remastered|60fps|ds\d*k?|uhd|remux|imax|"
+            r"web[- ]?dl|web[- ]?rip|bluray|brrip|hdrip|dvdrip|hdtvrip|hdtv|tv-dl|predvd|s-print|hdts|pre-hd|"
+            r"amzn|amazon|nf|netflix|dsnp|disney|hmax|max|atvp|apple|hulu|hotstar|hstar|jio|sonyliv|wb|zee5|jio|itunes|"
+            r"ddp\d*\.?\d*|dd\+?\d*\.?\d*|ac3\d*\.?\d*|aac\d*\.?\d*|dts(?:-hd)?(?:\s*ma)?|truehd|opus|flac|mp3|"
+            r"hindi|english|tamil|telugu|malayalam|kannada|marathi|bengali|punjabi|japanese|korean|spanish|french|german|chinese|italian|russian|"
+            r"dual\s*audio|multi\s*audio|\d+\s*dubs|multi\s*sub|esubs?|engsubs?|msubs?|hc-subs?|sdh|forced"
+            r")\b"
+        )
+
+        matches = []
+        for m in tech_pattern.finditer(stem_source):
+            raw_token = m.group(0).strip(" ._-")
+            matches.append((m.start(), raw_token))
+
+        if matches:
+            # Add extracted tokens preserved from original filename
+            seen_tokens = set()
+            for _, tok in matches:
+                tok_clean = clean_component(tok)
+                if tok_clean and tok_clean.lower() not in seen_tokens:
+                    seen_tokens.add(tok_clean.lower())
+                    values.append(tok_clean)
+        else:
+            # Fallback to smart parts if regex didn't extract tokens
+            if parts.quality:
+                values.append(clean_component(parts.quality))
+            if parts.ott:
+                values.append(clean_component(parts.ott))
+            if parts.audio:
+                values.append(clean_component(parts.audio))
+            if parts.codec:
+                values.append(clean_component(parts.codec))
+
+        # Audio / Subtitle track count normalization from media metadata
+        if media.audio_count > 0:
+            if media.audio_count == 2:
+                values.append("DualAudio")
+            elif media.audio_count >= 3:
+                values.append("MultiAudio")
+
+        if media.subtitle_count > 0:
+            if media.subtitle_count == 1:
+                if "ESub" not in values and "ESubs" not in values:
+                    values.append("ESub")
+            elif media.subtitle_count >= 2:
+                if "MSub" not in values and "MSubs" not in values:
+                    values.append("MSub")
 
         stem = ".".join(v for v in values if v)
         return (
