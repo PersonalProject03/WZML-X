@@ -691,6 +691,48 @@ class SmartFilenameBuilder:
             split_suffix=ctx.split_suffix,
         )
 
+    def make_smart_caption(
+        self,
+        original_filename: str,
+        ctx: SmartFilenameContext,
+        canonical: Optional[CanonicalMetadata],
+        media: SmartMediaMetadata,
+        prefix: str = "",
+        suffix: str = "",
+    ) -> str:
+        clean_prefix = re.sub(r"<.*?>", "", prefix or "").replace(r"\s", " ")
+        clean_suffix = re.sub(r"<.*?>", "", suffix or "").replace(r"\s", " ")
+
+        parts = self.make_parts(ctx, canonical, media)
+        if not parts:
+            return original_filename
+
+        ep_title = (canonical.episode_title if canonical else None) or ""
+
+        title_comp = clean_component(parts.title)
+        values = [title_comp]
+        if parts.identity:
+            values.append(clean_component(parts.identity))
+        if parts.year:
+            values.append(clean_component(parts.year))
+        if ep_title:
+            values.append(clean_component(ep_title))
+        if parts.quality:
+            values.append(clean_component(parts.quality))
+        if parts.ott:
+            values.append(clean_component(parts.ott))
+        if parts.audio:
+            values.append(clean_component(parts.audio))
+        if parts.codec:
+            values.append(clean_component(parts.codec))
+        if parts.esubs:
+            values.append("ESubs")
+
+        stem = ".".join(v for v in values if v)
+        return (
+            f"{clean_prefix}{stem}{clean_suffix}{parts.extension}{parts.split_suffix}"
+        )
+
 
 TV_REDUCTION_ORDER = (
     "episode_title",
@@ -874,6 +916,10 @@ class SmartAutoRename:
             )
             return file_path, meta
 
+        smart_caption_val = self.builder.make_smart_caption(
+            filename, ctx, canonical, media, prefix=prefix, suffix=suffix
+        )
+
         meta = {
             "show_name": (
                 canonical.series_title or canonical.title if canonical else None
@@ -891,6 +937,7 @@ class SmartAutoRename:
             or parts.ott
             or "",
             "codec": parts.codec or media.video_codec or ctx.filename_codec or "",
+            "smartcaption": smart_caption_val,
         }
 
         new_name = self.fitter.fit(
