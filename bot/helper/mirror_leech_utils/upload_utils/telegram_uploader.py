@@ -208,10 +208,20 @@ class TelegramUploader:
                 except Exception:
                     smart_meta = {}
 
+            smartcaption_val = smart_meta.get("smartcaption") or display_orig
+            from ...ext_utils.smart_autorename import _VIDEO_EXT_RE
+
+            split_m = _VIDEO_EXT_RE.search(pre_file_)
+            if split_m and split_m.group("split"):
+                s_suf = split_m.group("split")
+                if not smartcaption_val.endswith(s_suf):
+                    smartcaption_val = f"{smartcaption_val}{s_suf}"
+
             cap_mono = parts[0].format(
                 filename=display_filename,
                 orig_filename=display_orig,
                 smart_filename=pre_file_,
+                smartcaption=smartcaption_val,
                 size=get_readable_file_size(await aiopath.getsize(up_path)),
                 duration=get_readable_time(dur),
                 quality=qual,
