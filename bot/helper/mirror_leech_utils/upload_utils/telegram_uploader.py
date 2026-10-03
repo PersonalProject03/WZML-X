@@ -217,7 +217,11 @@ class TelegramUploader:
                 if not smartcaption_val.endswith(s_suf):
                     smartcaption_val = f"{smartcaption_val}{s_suf}"
 
-            cap_mono = parts[0].format(
+            class SafeDict(dict):
+                def __missing__(self, key):
+                    return f"{{{key}}}"
+
+            format_data = SafeDict(
                 filename=display_filename,
                 orig_filename=display_orig,
                 smart_filename=pre_file_,
@@ -239,6 +243,7 @@ class TelegramUploader:
                 source=smart_meta.get("source", ""),
                 codec=smart_meta.get("codec", ""),
             )
+            cap_mono = parts[0].format_map(format_data)
 
             for part in parts[1:]:
                 if not part:
