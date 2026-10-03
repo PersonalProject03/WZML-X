@@ -203,6 +203,7 @@ class TelegramUploader:
                         "year": str(ctx.year or ""),
                         "source": ctx.ott or "",
                         "codec": ctx.filename_codec or "",
+                        "smartcaption": display_orig,
                     }
                 except Exception:
                     smart_meta = {}
