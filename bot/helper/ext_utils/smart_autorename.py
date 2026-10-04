@@ -255,7 +255,7 @@ def normalize_language(lang_code: str | None) -> str | None:
 
 
 _SITE_TAGS_RE = re.compile(
-    r"(?i)\b(?:www\.)?[\w-]+\.(?:com|net|org|xyz|me|in|to|co|cc|info|tv|link|app|online|site|club|work|icu|top|vip|pro|party|fun|cam|lol|sbs|ws|is|download|store|page|click|live)\b|\b(?:vegamovies|1xbet|9xmovies|yts|rarbg|psa|bolly4u|desiremovies|hdhub4u|mkvking|katmoviehd|worldfree4u|filmyzilla|skymovieshd|uwatchfree)\b"
+    r"(?i)\b(?:www\.)?[\w-]+\.(?:com|net|org|xyz|me|in|to|co|cc|info|tv|link|app|online|site|club|work|icu|top|vip|pro|party|fun|cam|lol|sbs|ws|is|download|store|page|click|live|ms|ai)\b|\b(?:vegamovies|1xbet|9xmovies|yts|rarbg|psa|bolly4u|desiremovies|hdhub4u|mkvking|katmoviehd|worldfree4u|filmyzilla|skymovieshd|uwatchfree|moviesmod)\b"
 )
 
 
@@ -720,6 +720,10 @@ class SmartFilenameBuilder:
         ep_title = (canonical.episode_title if canonical else None) or ""
         stem_source, _, _ = split_media_filename(original_filename)
 
+        # Sanitize site/domain tags from stem source before extracting tokens
+        stem_clean = _SITE_TAGS_RE.sub(" ", stem_source)
+        stem_clean = re.sub(r"https?://\S+", " ", stem_clean, flags=re.I)
+
         title_comp = clean_component(parts.title)
         values = [title_comp]
         if parts.identity:
@@ -744,7 +748,7 @@ class SmartFilenameBuilder:
         )
 
         matches = []
-        for m in tech_pattern.finditer(stem_source):
+        for m in tech_pattern.finditer(stem_clean):
             raw_token = m.group(0).strip(" ._-")
             matches.append((m.start(), raw_token))
 
