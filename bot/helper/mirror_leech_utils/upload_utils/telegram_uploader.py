@@ -191,9 +191,16 @@ class TelegramUploader:
             )
             if not smart_meta and (self._smart_autorename or orig_filename):
                 try:
-                    from ...ext_utils.smart_autorename import parse_smart_filename
+                    from ...ext_utils.smart_autorename import (
+                        parse_smart_filename,
+                        SmartMediaMetadata,
+                        SmartFilenameBuilder,
+                    )
 
                     ctx = parse_smart_filename(display_orig)
+                    sc_fallback = SmartFilenameBuilder().make_smart_caption(
+                        display_orig, ctx, None, SmartMediaMetadata()
+                    )
                     smart_meta = {
                         "show_name": ctx.title or "",
                         "season": f"{ctx.season:02d}" if ctx.season is not None else "",
@@ -204,7 +211,7 @@ class TelegramUploader:
                         "year": str(ctx.year or ""),
                         "source": ctx.ott or "",
                         "codec": ctx.filename_codec or "",
-                        "smartcaption": display_orig,
+                        "smartcaption": sc_fallback or display_orig,
                     }
                 except Exception:
                     smart_meta = {}
