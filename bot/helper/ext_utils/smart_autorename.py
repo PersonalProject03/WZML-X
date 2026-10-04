@@ -739,8 +739,9 @@ class SmartFilenameBuilder:
             r"480p|540p|576p|720p|1080p|1440p|2160p|4320p|4k|"
             r"hevc|h\.?265|h\.?264|x265|x264|avc1?|av1|vp9|vp8|"
             r"10bit|8bit|hdr\d*|sdr|dovi|dolbyvision|open\s*matte|remastered|60fps|ds\d*k?|uhd|remux|imax|"
+            r"unrated|extended|uncut|untouched|directors\s*cut|theatrical\s*cut|upscaled|"
             r"web[- ]?dl|web[- ]?rip|bluray|brrip|hdrip|dvdrip|hdtvrip|hdtv|tv-dl|predvd|s-print|hdts|pre-hd|"
-            r"amzn|amazon|nf|netflix|dsnp|disney|hmax|max|atvp|apple|hulu|hotstar|hstar|jio|sonyliv|wb|zee5|jio|itunes|"
+            r"amzn|amazon|nf|netflix|cr|crunchyroll|sm|shemaroo|hs|hotstar|hstar|mxp|crav|snxt|zee5|jc|jiocinema|it|itunes|atv|apple\s*tv|dsnp|disney\+?|hmax|hulu|pcok|peacock|sonyliv|bms|"
             r"ddp\d*\.?\d*|dd\+?\d*\.?\d*|ac3\d*\.?\d*|aac\d*\.?\d*|dts(?:-hd)?(?:\s*ma)?|truehd|opus|flac|mp3|"
             r"hindi|english|tamil|telugu|malayalam|kannada|marathi|bengali|punjabi|japanese|korean|spanish|french|german|chinese|italian|russian|"
             r"dual\s*audio|multi\s*audio|\d+\s*dubs|multi\s*sub|esubs?|engsubs?|msubs?|hc-subs?|sdh|forced"
@@ -758,6 +759,39 @@ class SmartFilenameBuilder:
             for _, tok in matches:
                 tok_clean = clean_component(tok)
                 if tok_clean and tok_clean.lower() not in seen_tokens:
+                    # Filter out old audio-count/sub-count tokens if MediaInfo probe provides stream count
+                    if media.audio_count >= 2 and tok_clean.lower() in {
+                        "hindi",
+                        "english",
+                        "tamil",
+                        "telugu",
+                        "malayalam",
+                        "kannada",
+                        "marathi",
+                        "bengali",
+                        "punjabi",
+                        "japanese",
+                        "korean",
+                        "spanish",
+                        "french",
+                        "german",
+                        "chinese",
+                        "italian",
+                        "russian",
+                    }:
+                        continue
+                    if media.audio_count >= 2 and tok_clean.lower() in {
+                        "dualaudio",
+                        "multiaudio",
+                    }:
+                        continue
+                    if media.subtitle_count >= 1 and tok_clean.lower() in {
+                        "esub",
+                        "esubs",
+                        "msub",
+                        "msubs",
+                    }:
+                        continue
                     seen_tokens.add(tok_clean.lower())
                     values.append(tok_clean)
         else:
@@ -766,25 +800,27 @@ class SmartFilenameBuilder:
                 values.append(clean_component(parts.quality))
             if parts.ott:
                 values.append(clean_component(parts.ott))
-            if parts.audio:
+            if parts.audio and media.audio_count < 2:
                 values.append(clean_component(parts.audio))
             if parts.codec:
                 values.append(clean_component(parts.codec))
 
-        # Audio / Subtitle track count normalization from media metadata
+        # Audio track count normalization from MediaInfo
         if media.audio_count > 0:
-            if media.audio_count == 2:
+            if media.audio_count == 1:
+                if media.audio_language and media.audio_language not in values:
+                    values.append(clean_component(media.audio_language))
+            elif media.audio_count == 2:
                 values.append("DualAudio")
             elif media.audio_count >= 3:
                 values.append("MultiAudio")
 
+        # Subtitle track count normalization from MediaInfo
         if media.subtitle_count > 0:
             if media.subtitle_count == 1:
-                if "ESub" not in values and "ESubs" not in values:
-                    values.append("ESub")
+                values.append("ESub")
             elif media.subtitle_count >= 2:
-                if "MSub" not in values and "MSubs" not in values:
-                    values.append("MSub")
+                values.append("MSub")
 
         stem = ".".join(v for v in values if v)
         return (
