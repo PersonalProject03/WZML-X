@@ -23,6 +23,7 @@ class BotCommands:
         "Sleech": ["sleech", "stremio", "slch"],
         "StremioList": ["stremiolist", "slist"],
         "StremioDuplicate": ["stremiodup", "sdup", "sduplicate"],
+        "Widget": ["widget", "wgt"],
         "SeedrLink": ["seedrlink", "slink", "srlink"],
         "SeedrClean": ["seedrclean", "sclean", "seedrdel"],
         "Clone": ["clone", "cl"],

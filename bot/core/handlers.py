@@ -295,6 +295,13 @@ async def add_handlers():
     )
     TgClient.bot.add_handler(
         MessageHandler(
+            send_native_widget,
+            filters=command(BotCommands.WidgetCommand, case_sensitive=True)
+            & CustomFilters.authorized,
+        )
+    )
+    TgClient.bot.add_handler(
+        MessageHandler(
             qb_leech,
             filters=command(BotCommands.QbLeechCommand, case_sensitive=True)
             & CustomFilters.authorized,

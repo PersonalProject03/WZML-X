@@ -32,6 +32,7 @@ from .rc_search import (
 from .help import arg_usage, bot_help
 from .images import picture_add, pictures, pics_callback
 from .stream import stream_links
+from .widget import send_native_widget
 from .category_select import change_category, confirm_category, confirm_dump_chat
 from .broadcast import broadcast
 from .mirror_leech import (
@@ -150,6 +151,7 @@ __all__ = [
     "pictures",
     "pics_callback",
     "stream_links",
+    "send_native_widget",
     "broadcast",
     "change_category",
     "confirm_category",
